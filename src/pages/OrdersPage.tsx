@@ -76,6 +76,19 @@ const OrdersPage = () => {
   }, [sorted, normalizedPageIndex, pageSize]);
 
   const appliedChips = buildAppliedChips(filtersWithSearch);
+  const totalResults = sorted.length;
+  const resultsLabel = useMemo(() => {
+    if (!totalResults) return 'Showing 0 results';
+    const start = normalizedPageIndex * pageSize + 1;
+    const end = Math.min(totalResults, start + pageSize - 1);
+    return `Showing ${start}\u2013${end} of ${totalResults} results`;
+  }, [normalizedPageIndex, pageSize, totalResults]);
+
+  const tabCounts = [
+    { label: 'ALL', count: 64, active: true },
+    { label: 'PICKUPS', count: 30, active: false },
+    { label: 'RETURNS', count: 34, active: false }
+  ];
 
   const isFirstRender = useRef(true);
 
@@ -197,6 +210,25 @@ const OrdersPage = () => {
               </Transition>
             </Menu>
             <FilterChip label="More filters" icon="funnel" onClick={() => setMoreFiltersOpen(true)} />
+          </div>
+          <div className="flex flex-wrap items-center justify-between text-xs text-text-secondary">
+            <span className="font-semibold text-text-primary">{resultsLabel}</span>
+            <nav className="flex items-center gap-6 text-sm font-medium uppercase tracking-wide">
+              {tabCounts.map((tab) => (
+                <button
+                  key={tab.label}
+                  type="button"
+                  className={clsx(
+                    'flex items-center gap-2 text-text-secondary',
+                    tab.active ? 'text-text-primary font-semibold' : 'font-medium'
+                  )}
+                  aria-pressed={tab.active}
+                >
+                  {tab.label}
+                  <span className="text-gray-500">{tab.count}</span>
+                </button>
+              ))}
+            </nav>
           </div>
           {appliedChips.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">

@@ -13,14 +13,10 @@ const StatusPill: FC<StatusPillProps> = ({ value, type }) => {
   if (!tokens) return <span>{value}</span>;
   return (
     <span
-      className={clsx(
-        'inline-flex min-w-[96px] items-center justify-center rounded-full px-3 py-1 text-xs font-medium',
-        'border'
-      )}
+      className={clsx('inline-flex h-6 min-w-[96px] items-center justify-center rounded-full px-3 text-xs font-semibold')}
       style={{
         backgroundColor: tokens.bg,
-        color: tokens.text,
-        borderColor: tokens.border
+        color: tokens.text
       }}
     >
       {value}

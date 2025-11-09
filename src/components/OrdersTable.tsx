@@ -6,14 +6,10 @@ import {
   useReactTable
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  ChevronDownIcon,
-  ChevronUpDownIcon,
-  EllipsisHorizontalIcon
-} from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
 import clsx from 'clsx';
-import { Fragment, useMemo, useRef } from 'react';
+import { Fragment, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import StatusPill from './StatusPill';
 import type { Order } from '../types';
@@ -83,14 +79,26 @@ const columns: ColumnDef<Order>[] = [
   {
     accessorKey: 'products',
     header: 'Products',
-    cell: ({ row }) => (
-      <span
-        className="text-sm text-text-primary"
-        title={row.original.notes?.replace('tooltip: ', '') ?? ''}
-      >
-        {row.original.products}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const tooltip = row.original.notes?.replace('tooltip: ', '');
+      const isRecurring = row.original.ref === 'QH29';
+      const label = isRecurring ? row.original.products.replace(' 🔁', '') : row.original.products;
+      return (
+        <span className="inline-flex items-center gap-2 text-sm text-text-primary">
+          <span>{label}</span>
+          {isRecurring && tooltip ? (
+            <span
+              role="img"
+              aria-label={tooltip}
+              title={tooltip}
+              className="cursor-help text-base leading-none"
+            >
+              🔁
+            </span>
+          ) : null}
+        </span>
+      );
+    },
     size: 240
   },
   {
@@ -127,7 +135,9 @@ const columns: ColumnDef<Order>[] = [
     accessorKey: 'price',
     header: 'Price',
     cell: ({ getValue }) => (
-      <span className="font-mono text-sm font-semibold text-text-primary">{getValue<string>()}</span>
+      <span className="block w-full text-right font-mono text-sm font-semibold text-text-primary">
+        {getValue<string>()}
+      </span>
     ),
     size: 140
   },
@@ -152,10 +162,10 @@ const RowActions = ({ refId, status }: { refId: string; status: Order['status'] 
   return (
     <Menu as="div" className="relative flex justify-end">
       <Menu.Button
-        className="inline-flex items-center rounded-full p-1 text-text-secondary opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:bg-gray-100 hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        className="inline-flex items-center rounded-full px-2 py-1 text-base text-text-secondary opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 hover:bg-gray-100 hover:text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
         aria-label={`Actions for order ${refId}`}
       >
-        <EllipsisHorizontalIcon className="h-5 w-5" />
+        ⋯
       </Menu.Button>
       <Transition
         as={Fragment}
@@ -236,23 +246,10 @@ const OrdersTable = ({
     overscan: 8
   });
 
-  const pageCount = Math.ceil(total / pageSize);
-  const paginationLabel = useMemo(() => {
-    const start = pageIndex * pageSize + 1;
-    const end = Math.min(total, start + pageSize - 1);
-    return `Showing ${start.toString()}–${end.toString()} of ${total} results`;
-  }, [pageIndex, pageSize, total]);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize) || 1);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border-subtle bg-white px-6 py-3 text-xs font-medium text-text-secondary">
-        <div className="flex gap-4">
-          <Tab label="ALL" count={total} active />
-          <Tab label="PICKUPS" count={30} />
-          <Tab label="RETURNS" count={34} />
-        </div>
-        <span>{paginationLabel}</span>
-      </div>
+    <div className="flex h-full flex-col rounded-2xl border border-border-subtle bg-white">
       <div className="relative flex-1 overflow-hidden">
         <div ref={containerRef} className="scrollbar-thin h-full overflow-auto bg-white">
           <table role="table" className="w-full border-separate border-spacing-0">
@@ -267,7 +264,7 @@ const OrdersTable = ({
                         key={header.id}
                         scope="col"
                         className={clsx(
-                          'border-b border-border-subtle bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-text-secondary',
+                          'bg-white px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-text-secondary',
                           header.column.id === 'select' ? 'w-12' : ''
                         )}
                       >
@@ -275,17 +272,27 @@ const OrdersTable = ({
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                            aria-sort={sortState ? (sortState === 'asc' ? 'ascending' : 'descending') : 'none'}
+                            className="group inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                            aria-sort={sortState ? (sortState === 'asc' ? 'ascending' : 'descending') : undefined}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
-                            {sortState === 'asc' ? (
-                              <ChevronDownIcon className="h-3 w-3 rotate-180" />
-                            ) : sortState === 'desc' ? (
-                              <ChevronDownIcon className="h-3 w-3" />
-                            ) : (
-                              <ChevronUpDownIcon className="h-3 w-3" />
-                            )}
+                            <span className="inline-flex h-3 w-3 items-center justify-center">
+                              {sortState ? (
+                                <ChevronDownIcon
+                                  className={clsx(
+                                    'h-3 w-3 text-gray-400 transition-opacity duration-150',
+                                    sortState === 'asc' ? 'rotate-180' : '',
+                                    'opacity-100'
+                                  )}
+                                  aria-hidden
+                                />
+                              ) : (
+                                <ChevronUpDownIcon
+                                  className="h-3 w-3 text-gray-400 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                                  aria-hidden
+                                />
+                              )}
+                            </span>
                           </button>
                         ) : (
                           flexRender(header.column.columnDef.header, header.getContext())
@@ -304,23 +311,23 @@ const OrdersTable = ({
                       const row = rows[virtualRow.index];
                       if (!row) return null;
                       const isSelected = selectedRefs.includes(row.original.ref);
-                      const isStriped = virtualRow.index % 2 === 1;
-                      const isDelayed = row.original.delayed || row.original.delivery === 'Delayed';
-                      const highlight = isDelayed ? '#FFF7ED' : undefined;
+                      const zebra = virtualRow.index % 2 === 1 ? '#FAFAFA' : '#FFFFFF';
+                      const isDelayed = row.original.delivery === 'Delayed';
+                      const backgroundColor = isDelayed ? '#FFF7ED' : zebra;
                       return (
                         <div
                           key={row.id}
                           data-index={virtualRow.index}
                           ref={rowVirtualizer.measureElement}
-                          className={clsx('group flex border-b border-border-subtle', isStriped ? 'bg-[#FAFAFA]' : 'bg-white')}
+                          className="group flex min-h-[52px]"
                           style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
                             width: '100%',
                             transform: `translateY(${virtualRow.start}px)`,
-                            backgroundColor: highlight,
-                            borderLeft: isSelected ? '4px solid #2563EB' : '4px solid transparent'
+                            backgroundColor,
+                            boxShadow: isSelected ? 'inset 0 0 0 1px #10B981' : undefined
                           }}
                         >
                           {row.getVisibleCells().map((cell) => (
@@ -349,29 +356,29 @@ const OrdersTable = ({
           </table>
         </div>
       </div>
-      <footer className="flex items-center justify-between border-t border-border-subtle bg-white px-6 py-3 text-sm text-text-secondary">
-        <div className="flex items-center gap-2">
+      <footer className="border-t border-border-subtle bg-white px-6 py-3">
+        <div className="grid grid-cols-3 items-center text-sm text-text-secondary">
           <button
             type="button"
-            className="rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="justify-self-start rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50"
             onClick={() => onPageChange(Math.max(pageIndex - 1, 0))}
             disabled={pageIndex === 0}
           >
             PREVIOUS
           </button>
-          <span className="text-sm text-text-secondary">
+          <span className="justify-self-center text-sm font-semibold text-text-primary">
             {pageIndex + 1} of {pageCount}
           </span>
           <button
             type="button"
-            className="rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className="justify-self-end rounded-lg border border-border-subtle px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50"
             onClick={() => onPageChange(Math.min(pageIndex + 1, pageCount - 1))}
             disabled={pageIndex + 1 >= pageCount}
           >
             NEXT
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="mt-2 flex items-center justify-end gap-2 text-xs text-text-secondary">
           <span>Results per page:</span>
           <select
             value={pageSize}
@@ -387,21 +394,6 @@ const OrdersTable = ({
         </div>
       </footer>
     </div>
-  );
-};
-
-const Tab = ({ label, count, active = false }: { label: string; count: number; active?: boolean }) => {
-  return (
-    <button
-      type="button"
-      className={clsx(
-        'flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold',
-        active ? 'bg-emerald-100 text-emerald-700' : 'text-text-secondary hover:bg-gray-100'
-      )}
-    >
-      {label}
-      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-text-secondary">{count}</span>
-    </button>
   );
 };
 
